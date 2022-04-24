@@ -1,3 +1,4 @@
+from queue import Empty
 import sys
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -12,6 +13,7 @@ import numpy as np
 def get_data(filename, window_size, stride):
     f = open(filename, 'r')
     text = f.read()
+
 
     encoded = []
 
@@ -28,6 +30,7 @@ def get_data(filename, window_size, stride):
         all_slices.append(encoded[starting_index:starting_index+window_size+1])
         starting_index += stride
     
+
     # turn the slices into x slices and y slices
     x_slices = []
     y_slices = []
@@ -37,6 +40,11 @@ def get_data(filename, window_size, stride):
 
         x_slices.append(x)
         y_slices.append(y)
+        
+
+    # for val in range(len(x_slices)):
+    #     print("x[" + str(val) + "]: " + str(x_slices[val]) + " y[" + str(val) + "]: " + str(y_slices[val]))
+
 
 
     # one hot encode the slices and return them
@@ -66,14 +74,16 @@ def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
     for i in range(x.shape[1]):
         letter = np.argmax(x[0][i])
         letter = reverse_map[letter]
-        print(letter, end='')
+        #print(letter, end='')
 
     y_pred = x
 
     for i in range(num_predictions):
         y_pred = new_model.predict(y_pred)
-
-        letter = np.argmax(y_pred[0][-1])
+        total = [sum(x) for x in zip(*y_pred)]
+        letter = np.argmax(total)
+                
+        #print(str(letter) + " = " + reverse_map[letter])
         # print(letter, end = ' ')
         # print(y_pred[0][4][letter])
         letter = reverse_map[letter]
@@ -95,11 +105,15 @@ def train_model(model, x, y, num_epochs, reverse_map):
     sample = x[0]
     sample = np.expand_dims(sample, 0)
 
+
     # while loop so you can generate text every certain number of epochs
     i = 0
     while(i < 5):
         model.fit(x, y, epochs=int(num_epochs/5))
         i += 1
+
+        sample = x[np.random.randint(len(x))]
+        sample = np.expand_dims(sample, 0)
 
         predict_chars(model, sample, 1, 15, reverse_map)
 
@@ -120,9 +134,14 @@ def main():
 
     if(type_model == 'simple'):
         model = Sequential()
-        model.add(layers.SimpleRNN(hidden_state_size, return_sequences=True, input_shape=(5, x.shape[2])))
+        model.add(layers.SimpleRNN(hidden_state_size, return_sequences=True, input_shape=(10, x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
 
+        train_model(model, x, y, 100, reverse_map)
+    elif(type_model == 'lstm'):
+        model = Sequential()
+        model.add(layers.LSTM(hidden_state_size, return_sequences=True, input_shape=(10, x.shape[2])))
+        model.add(layers.Dense(x.shape[2], activation='softmax'))
         train_model(model, x, y, 100, reverse_map)
 
 if __name__ == '__main__':
