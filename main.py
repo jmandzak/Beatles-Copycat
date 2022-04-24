@@ -18,6 +18,7 @@ def get_data(filename, window_size, stride):
     # taken from example rnn code
     chars = sorted(list(set(text)))
     mapping = dict((c, i) for i, c in enumerate(chars))
+    reverse_map = {v: k for k, v in mapping.items()}
     encoded = np.array([mapping[char] for char in text])
 
     # create the slices
@@ -51,10 +52,37 @@ def get_data(filename, window_size, stride):
     # print(x.shape)
     # print(y.shape)
 
-    return x, y
+    return x, y, reverse_map
 
 
-def train_model(model, x, y, num_epochs):
+def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
+    # create a new model with the same layers except an added lambda layer to take temp into account
+    new_model = Sequential()
+    new_model.add(model.layers[0])
+    new_model.add(layers.Lambda(lambda x: x / samp_temp))
+    new_model.add(model.layers[1])
+    new_model.compile(loss=CategoricalCrossentropy(), optimizer='adam')
+
+    for i in range(x.shape[1]):
+        letter = np.argmax(x[0][i])
+        letter = reverse_map[letter]
+        print(letter, end='')
+
+    y_pred = x
+
+    for i in range(num_predictions):
+        y_pred = new_model.predict(y_pred)
+
+        letter = np.argmax(y_pred[0][-1])
+        # print(letter, end = ' ')
+        # print(y_pred[0][4][letter])
+        letter = reverse_map[letter]
+        print(letter, end='')
+
+    print()
+    
+
+def train_model(model, x, y, num_epochs, reverse_map):
 
     # THIS IS JUST TO MAKE TESTING EASIER BY MAKING IT QUICKER
     # NEED TO REMOVE EVENTUALLY
@@ -63,11 +91,17 @@ def train_model(model, x, y, num_epochs):
 
     model.compile(loss=CategoricalCrossentropy(), optimizer='adam')
 
+    # go ahead and grab a sample from the training data so we can see how the predictions evolve over time
+    sample = x[0]
+    sample = np.expand_dims(sample, 0)
+
     # while loop so you can generate text every certain number of epochs
     i = 0
     while(i < 5):
         model.fit(x, y, epochs=int(num_epochs/5))
         i += 1
+
+        predict_chars(model, sample, 1, 15, reverse_map)
 
 def main():
     # check for command line args
@@ -82,23 +116,14 @@ def main():
     stride = int(sys.argv[5])
     samp_temp = float(sys.argv[6])
 
-    x, y = get_data(input_file, window_size, stride)
+    x, y, reverse_map = get_data(input_file, window_size, stride)
 
-    print(x[0].shape)
     if(type_model == 'simple'):
         model = Sequential()
         model.add(layers.SimpleRNN(hidden_state_size, return_sequences=True, input_shape=(5, x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
 
-        train_model(model, x, y, 20)
-        # print(model.summary())
-
-        # test = x[0]
-        # test = test.reshape(1, 5, 48)
-        # ans = model.predict(x[0])
-        # print(ans.shape)
-        # # print(ans)
-        # print(ans[0,0:4])
+        train_model(model, x, y, 100, reverse_map)
 
 if __name__ == '__main__':
     main()
