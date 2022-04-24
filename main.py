@@ -40,25 +40,10 @@ def get_data(filename, window_size, stride):
 
         x_slices.append(x)
         y_slices.append(y)
-        
-
-    # for val in range(len(x_slices)):
-    #     print("x[" + str(val) + "]: " + str(x_slices[val]) + " y[" + str(val) + "]: " + str(y_slices[val]))
-
-
 
     # one hot encode the slices and return them
     x = np.array(to_categorical(x_slices))
     y = np.array(to_categorical(y_slices))
-
-    # print(x.shape)
-    # print(y.shape)
-
-    # x = x.reshape((len(x_slices), 1, window_size, len(mapping)))
-    # y = y.reshape((len(x_slices), 1, window_size, len(mapping)))
-
-    # print(x.shape)
-    # print(y.shape)
 
     return x, y, reverse_map
 
@@ -71,21 +56,27 @@ def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
     new_model.add(model.layers[1])
     new_model.compile(loss=CategoricalCrossentropy(), optimizer='adam')
 
+    # print the initial input
     for i in range(x.shape[1]):
         letter = np.argmax(x[0][i])
         letter = reverse_map[letter]
-        #print(letter, end='')
-
-    y_pred = x
+        print(letter, end='')
 
     for i in range(num_predictions):
-        y_pred = new_model.predict(y_pred)
-        total = [sum(x) for x in zip(*y_pred)]
-        letter = np.argmax(total[-1])
+        # get the prediction
+        y_pred = new_model.predict(x)
+        last_letter = y_pred[0][-1]
+        letter = np.argmax(last_letter)
+
+        # create a new array of size (1, vocab_size) filled with all zeroes and a single 1 for the predicted character
+        new_array = np.zeros(last_letter.shape)
+        new_array[letter] = 1
+        new_array = np.expand_dims(new_array, 0)
+
+        # update x to add on the new letter and pop off the first letter so we stay size (1, window_size, vocab_size)
+        x[0] = (np.append(x[0], new_array, axis=0))[1:]
                 
-        #print(str(letter) + " = " + reverse_map[letter])
-        # print(letter, end = ' ')
-        # print(y_pred[0][4][letter])
+        # print the letter
         letter = reverse_map[letter]
         print(letter, end='')
 
@@ -96,10 +87,10 @@ def train_model(model, x, y, num_epochs, reverse_map):
 
     # THIS IS JUST TO MAKE TESTING EASIER BY MAKING IT QUICKER
     # NEED TO REMOVE EVENTUALLY
-    x = x[:5000]
-    y = y[:5000]
+    # x = x[:5000]
+    # y = y[:5000]
 
-    model.compile(loss=CategoricalCrossentropy(), optimizer='adam')
+    model.compile(loss=CategoricalCrossentropy(), optimizer='adam', metrics=['accuracy'])
 
     # go ahead and grab a sample from the training data so we can see how the predictions evolve over time
     sample = x[0]
@@ -115,7 +106,7 @@ def train_model(model, x, y, num_epochs, reverse_map):
         sample = x[np.random.randint(len(x))]
         sample = np.expand_dims(sample, 0)
 
-        predict_chars(model, sample, 1, 15, reverse_map)
+        predict_chars(model, sample, 1, 60, reverse_map)
 
 def main():
     # check for command line args
@@ -134,13 +125,13 @@ def main():
 
     if(type_model == 'simple'):
         model = Sequential()
-        model.add(layers.SimpleRNN(hidden_state_size, return_sequences=True, input_shape=(10, x.shape[2])))
+        model.add(layers.SimpleRNN(hidden_state_size, return_sequences=True, input_shape=(x.shape[1], x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
 
         train_model(model, x, y, 100, reverse_map)
     elif(type_model == 'lstm'):
         model = Sequential()
-        model.add(layers.LSTM(hidden_state_size, return_sequences=True, input_shape=(10, x.shape[2])))
+        model.add(layers.LSTM(hidden_state_size, return_sequences=True, input_shape=(x.shape[1], x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
         train_model(model, x, y, 100, reverse_map)
 
