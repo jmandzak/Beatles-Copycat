@@ -81,7 +81,7 @@ def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
     for i in range(num_predictions):
         y_pred = new_model.predict(y_pred)
         total = [sum(x) for x in zip(*y_pred)]
-        letter = np.argmax(total)
+        letter = np.argmax(total[-1])
                 
         #print(str(letter) + " = " + reverse_map[letter])
         # print(letter, end = ' ')
