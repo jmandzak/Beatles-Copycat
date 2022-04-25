@@ -68,13 +68,15 @@ def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
         last_letter = y_pred[0][-1]
         letter = np.argmax(last_letter)
 
+        last_letter = np.expand_dims(last_letter, 0)
+
         # create a new array of size (1, vocab_size) filled with all zeroes and a single 1 for the predicted character
-        new_array = np.zeros(last_letter.shape)
-        new_array[letter] = 1
-        new_array = np.expand_dims(new_array, 0)
+        # new_array = np.zeros(last_letter.shape)
+        # new_array[letter] = 1
+        # new_array = np.expand_dims(new_array, 0)
 
         # update x to add on the new letter and pop off the first letter so we stay size (1, window_size, vocab_size)
-        x[0] = (np.append(x[0], new_array, axis=0))[1:]
+        x[0] = (np.append(x[0], last_letter, axis=0))[1:]
                 
         # print the letter
         letter = reverse_map[letter]
@@ -106,7 +108,7 @@ def train_model(model, x, y, num_epochs, reverse_map):
         sample = x[np.random.randint(len(x))]
         sample = np.expand_dims(sample, 0)
 
-        predict_chars(model, sample, 1, 60, reverse_map)
+        predict_chars(model, sample, 0.2, 200, reverse_map)
 
 def main():
     # check for command line args
