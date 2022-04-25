@@ -1,10 +1,8 @@
-from queue import Empty
 import sys
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-from sklearn.preprocessing import OneHotEncoder
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras import layers
+from tensorflow.keras import layers, callbacks
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.losses import CategoricalCrossentropy
 import numpy as np
@@ -68,12 +66,8 @@ def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
         last_letter = y_pred[0][-1]
         letter = np.argmax(last_letter)
 
+        # add a dimension to make the dims match (1, vocab_size)
         last_letter = np.expand_dims(last_letter, 0)
-
-        # create a new array of size (1, vocab_size) filled with all zeroes and a single 1 for the predicted character
-        # new_array = np.zeros(last_letter.shape)
-        # new_array[letter] = 1
-        # new_array = np.expand_dims(new_array, 0)
 
         # update x to add on the new letter and pop off the first letter so we stay size (1, window_size, vocab_size)
         x[0] = (np.append(x[0], last_letter, axis=0))[1:]
@@ -85,7 +79,7 @@ def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
     print()
     
 
-def train_model(model, x, y, num_epochs, reverse_map, temp):
+def train_model(model, x, y, num_epochs, reverse_map, temp, type_model, hidden_size):
 
     # THIS IS JUST TO MAKE TESTING EASIER BY MAKING IT QUICKER
     # NEED TO REMOVE EVENTUALLY
@@ -98,22 +92,36 @@ def train_model(model, x, y, num_epochs, reverse_map, temp):
     sample = x[0]
     sample = np.expand_dims(sample, 0)
 
+    # set up the tensorboard before we fit
+    # creating unique name for tensorboard directory
+    # log_dir = "logs/class/" + f'window_size={x.shape[1]}-hidden={hidden_size}-model={type_model}'
+    # #Tensforboard callback function
+    # tensorboard_callback = callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+
 
     # while loop so you can generate text every certain number of epochs
     i = 0
     while(i < 5):
-        model.fit(x, y, epochs=int(num_epochs/5))
+        model.fit(x, y, epochs=int(num_epochs/5), callbacks=[tensorboard_callback])
         i += 1
 
         sample = x[np.random.randint(len(x))]
         sample = np.expand_dims(sample, 0)
 
-        predict_chars(model, sample, temp, 200, reverse_map)
+        predict_chars(model, sample, temp, 300, reverse_map)
+
+    # for generating the graphs
+    # model.fit(x, y, epochs=num_epochs, callbacks=[tensorboard_callback])
+
+    # sample = x[np.random.randint(len(x))]
+    # sample = np.expand_dims(sample, 0)
+
+    # predict_chars(model, sample, temp, 300, reverse_map)
 
 def main():
     # check for command line args
     if len(sys.argv) < 7:
-        print('USAGE: python main.py [input_file] [lstm/simple] [hidden_state_size (int)] [window_size (int)] [stride (int)] [sampling_temp (int)]')
+        print('USAGE: python main.py [input_file] [lstm/simple] [hidden_state_size (int)] [window_size (int)] [stride (int)] [sampling_temp (float)]')
         return
 
     input_file = sys.argv[1]
@@ -129,13 +137,12 @@ def main():
         model = Sequential()
         model.add(layers.SimpleRNN(hidden_state_size, return_sequences=True, input_shape=(x.shape[1], x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
-
-        train_model(model, x, y, 100, reverse_map, samp_temp)
+        train_model(model, x, y, 100, reverse_map, samp_temp, 'simple', hidden_state_size)
     elif(type_model == 'lstm'):
         model = Sequential()
         model.add(layers.LSTM(hidden_state_size, return_sequences=True, input_shape=(x.shape[1], x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
-        train_model(model, x, y, 100, reverse_map, samp_temp)
+        train_model(model, x, y, 100, reverse_map, samp_temp, 'lstm', hidden_state_size)
 
 if __name__ == '__main__':
     main()
