@@ -85,7 +85,7 @@ def predict_chars(model, x, samp_temp, num_predictions, reverse_map):
     print()
     
 
-def train_model(model, x, y, num_epochs, reverse_map):
+def train_model(model, x, y, num_epochs, reverse_map, temp):
 
     # THIS IS JUST TO MAKE TESTING EASIER BY MAKING IT QUICKER
     # NEED TO REMOVE EVENTUALLY
@@ -108,7 +108,7 @@ def train_model(model, x, y, num_epochs, reverse_map):
         sample = x[np.random.randint(len(x))]
         sample = np.expand_dims(sample, 0)
 
-        predict_chars(model, sample, 0.2, 200, reverse_map)
+        predict_chars(model, sample, temp, 200, reverse_map)
 
 def main():
     # check for command line args
@@ -130,12 +130,12 @@ def main():
         model.add(layers.SimpleRNN(hidden_state_size, return_sequences=True, input_shape=(x.shape[1], x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
 
-        train_model(model, x, y, 100, reverse_map)
+        train_model(model, x, y, 100, reverse_map, samp_temp)
     elif(type_model == 'lstm'):
         model = Sequential()
         model.add(layers.LSTM(hidden_state_size, return_sequences=True, input_shape=(x.shape[1], x.shape[2])))
         model.add(layers.Dense(x.shape[2], activation='softmax'))
-        train_model(model, x, y, 100, reverse_map)
+        train_model(model, x, y, 100, reverse_map, samp_temp)
 
 if __name__ == '__main__':
     main()
